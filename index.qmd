@@ -1,0 +1,297 @@
+---
+title: "Projet Analyse de données en R, M2 IA School"
+author: "Jean Luc GAMAN, Jordan B"
+
+toc: true
+code-fold: show
+reader-mode: true
+logo: "iaschool.png"
+---
+
+# Data Analyse du data-set Wage Mid-Atlantic
+
+Durant cette exploration nous tâcherons de répondre aux questions suivantes :
+
+1.  `Comment expliquer la différence de salaire entre indivus ?`
+
+2.  `Est ce que le niveau d'étude a un impact sur les revenus de nos individus ?`
+
+3.  `Peut-on prédire quel sera le salaire d'un individu grâce à son niveau d'étude ?`
+
+## Installation des différentes Librairies
+
+```{r, results='hide', message = FALSE}
+
+library(tidyverse) # tout ce dont on a besoin pour modifier et analyser nos données
+library(ISLR) #contient notre dataset Wage
+library(flextable) # pour de belles présentations sous forme de tables
+library(dlookr) # Analyse exploratoire de données, traitement des données manquantes et corrélation
+library(ggstatsplot) # de belles visualisations statistiques et sommaire statistique de notre dataset
+library(tidymodels) # Machine learning 
+library(report) # ce package décrit automatiquement nos models et autres dataset
+library(gtsummary) # de beau sommaire
+library(DataExplorer) # revèle les données manquantes et permet de les remplacer
+library(plotly) #interactive visualisation
+library(performance) #performance et comparaison de modèles
+library(sjPlot)
+library(broom)   # pour tidy(), glance() & augment() fonctions
+```
+
+## Importons notre dataset
+
+```{r}
+df <- Wage
+summary(df)
+```
+
+## Décrivons notre dataset
+
+```{r}
+report(df)
+```
+
+## Vérifions si notre dataset à des données manquantes
+
+```{r}
+plot_intro(df)
+```
+
+🩺 Pas de données manquantes
+
+```{r}
+df |> 
+  correlate() |> 
+  plot()
+```
+
+## Visualisons nos données
+
+### La race vs le niveau d'éducation
+
+```{r, message=FALSE}
+p  <- df |> 
+  group_by(race) |> 
+  plot_frq(education) |> 
+    plot_grid()
+
+```
+
+💡Par exemple, le sous-graphe C montre que la plupart des Afro-Américains de notre échantillon ont un niveau d'éducation élevé.
+
+### Type de Job
+
+```{r}
+plot_grpfrq(
+  var.cnt = df$education,
+  var.grp = df$jobclass
+)
+```
+
+💡Par exemple, elle montre clairement que la plupart des personnes ayant un faible niveau d'éducation travaillent dans des usines, tandis que les personnes ayant un niveau d'éducation plus élevé travaillent dans le domaine de l'information.
+
+### Essayons de déterminer qui gagne le plus, les travailleurs de l'industrie ou de l'information 
+
+```{r, message = FALSE, results = 'hide'}
+df |> 
+  group_by(jobclass) |> 
+  plot_frq(wage, type = "histogram", show.mean = TRUE, normal.curve = TRUE) |> 
+  plot_grid()
+```
+
+💡Cette visualisation révèle que les travailleurs de l'industrie reçoivent **103 000 dollars en moyenne**, tandis que les informaticiens reçoivent **17 000 dollars de plus**.
+
+## Créons un modèle de régression linéaire
+
+Notre modèle prédit le salaire en fonction de l'âge
+
+```{r}
+
+# Modèle de régression linéaire simple qui prédit les revenus en fonction de l'âge
+
+lm.fit <- lm(wage ~ age, data = df)
+report(lm.fit)
+
+# exemple de Prédiction du salaire en fonction de l'âge
+newdata <- data.frame(age = 55)
+predict(lm.fit, newdata)
+
+```
+
+## Visualisons notre dataset avec la droite de régression et notre modèle linéaire
+
+```{r, message = FALSE}
+
+# Créer le graphique ggplot
+p <- ggplot(df, aes(x = age, y = wage)) + 
+  geom_point(aes(color = education)) + 
+  geom_smooth(method = lm) +
+  labs(title = "Relation entre l'âge et le salaire", 
+       x = "Âge", y = "Salaire") +
+  theme(plot.title = element_text(size = 18, face = "bold", hjust = 0.5)) + 
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  scale_color_discrete() +
+  labs(title = "Relation entre l'âge et le salaire") +
+  
+  # Ajouter une droite de régression linéaire
+  geom_smooth(method = "lm", se = FALSE, color = "black") 
+  
+# Convertir le graphique en un graphique Plotly interactif
+ggplotly(p)
+```
+
+-   Par exemple, l'augmentation du salaire avec l'âge est beaucoup plus importante lorsque l'on possède au moins un diplôme universitaire que si l'on n'a pas fait d'études. Ainsi, à la fin de notre vie, nous aurons un salaire impressionnant de 150 000 dollars, alors que sans aucune formation, nous ne dépasserons jamais la barre des 100 000 dollars.
+
+-   Il semble donc que l'éducation soit importante, et la pente le montre clairement ! Cependant, bien que la pente du diplôme d'études supérieures soit beaucoup plus faible, ce qui pourrait suggérer que l'éducation n'en vaut pas la peine, l'ordonnée à l'origine raconte une autre histoire.
+
+-   En effet, les personnes qui ont investi dans l'éducation dès le départ commencent leur vie avec le même salaire que celui que les personnes qui ont fait des études supérieures n'atteignent qu'à la fin de leur vie.
+
+-   Examinons attentivement ce modèle linéaire. Il indique que **la seule chose à faire pour gagner beaucoup plus d'argent est de vieillir**. Mais pourquoi un groupe de personnes (`nos outliers`) gagne-t-il tellement plus que les autres ? et certaines personne aussi peu ? **Et un modèle unique est-il en mesure d'appréhender ces groupes ?**
+
+-   Si l'on examine le niveau d'éducation de ces 3 000 personnes, on constate que la plupart des plus riches ont un diplôme d'études supérieures, tandis que la plupart des plus pauvres n'ont qu'un diplôme d'études secondaires ou moins.
+
+### créons un autre modèle linéaire afin de savoir si le niveau d'éducation à un impacte sur le revenu
+
+```{r}
+m <- lm(wage ~ education, data = df)
+plot_model(m, type = "pred")
+report(m)
+```
+
+💡Le tracé de la prédiction m'indique immédiatement l'histoire. En effet, les personnes qui n'ont même pas terminé leurs études secondaires ont le salaire le plus bas par rapport à tous les autres niveaux d'éducation. En outre, nous pouvons constater que l'augmentation du niveau d'éducation se traduit par une augmentation des salaires. **L'éducation est donc importante !**
+
+## Analysons les Outliers du dataset
+
+```{r}
+df |> 
+  select(wage) |> 
+  plot_outlier()
+```
+
+```{r}
+diagnose_outlier(df) |> flextable()
+```
+
+## Tableau croisé de nos individus rangés par niveau d'éducation
+
+```{r}
+df |> 
+  select(age, wage, education, jobclass, health_ins) |> 
+  tbl_summary(by = education) 
+```
+
+Dans le premier cas, 144 personnes n'ont pas d'éducation ("1. \< HS Grad") et pas d'assurance maladie ("2. No").
+
+## Splittons notre dataset en 10 groupes avec `group_by` et `nest`
+
+Avant de pouvoir modéliser, nous devons diviser nos données en 10 groupes à l'aide de la fonction `group_by()`, **puis verrouiller ces 10 groupes en 10 ensembles de données différents à l'aide de la fonction** `nest()`**.**
+
+```{r}
+nested_data <- df |>  
+  group_by(education, health_ins) |> 
+  nest() 
+
+nested_data
+```
+
+Dans un cadre de données imbriqué, chaque ligne est une méta-observation où les variables catégorielles "éducation et assurance maladie" définissent nos 10 groupes, tandis que la colonne-liste de 10 ensembles de données peut être considérée comme 10 casiers contenant des observations individuelles appartenant uniquement à une combinaison particulière d'éducation et d'assurance maladie.
+
+## Itérons sur chacun des datasets créés afin de créer nos modèles
+
+```{r, message=FALSE}
+
+nested_models <- nested_data |> 
+  mutate(models  = map(data, ~ lm(wage ~ age, data = .)), 
+         coefs   = map(models, tidy, conf.int = TRUE),
+         quality = map(models, glance),
+         preds   = map(models, augment),
+         performance = map(models, performance::check_model)) 
+
+nested_models
+```
+
+-   **`mutate(data, models = map(data, ~ lm(wage ~ age, data = .)))`** : Cette ligne crée une nouvelle colonne appelée "models" dans le dataframe "nested_data". Elle utilise la fonction map() pour appliquer la fonction lm() à chaque élément de la colonne "data", ajustant ainsi un modèle de régression linéaire avec "wage" comme variable dépendante et "age" comme variable indépendante.
+
+-   **`mutate(models, coefs = map(models, tidy, conf.int = TRUE))`** : Cette ligne ajoute une nouvelle colonne appelée "coefs" au dataframe "nested_data". Elle utilise la fonction map() pour appliquer la fonction tidy() du package broom à chaque élément de la colonne "models". La fonction tidy() extrait les estimations des coefficients et les intervalles de confiance de chaque modèle de régression linéaire.
+
+-   **`mutate(models, quality = map(models, glance))`** : Cette ligne ajoute une nouvelle colonne appelée "quality" au dataframe "nested_data". Elle utilise la fonction map() pour appliquer la fonction glance() du package broom à chaque élément de la colonne "models". La fonction glance() fournit un résumé de l'ajustement du modèle, y compris diverses statistiques et métriques.
+
+-   **`mutate(models, preds = map(models, augment))`** : Cette ligne ajoute une nouvelle colonne appelée "preds" au dataframe "nested_data". Elle utilise la fonction map() pour appliquer la fonction augment() du package broom à chaque élément de la colonne "models". La fonction augment() génère des valeurs prédites et d'autres informations spécifiques au modèle.
+
+-   **`mutate(models, performance = map(models, performance::check_model))`** : Cette ligne ajoute une nouvelle colonne appelée "performance" au dataframe "nested_data". Elle utilise la fonction map() pour appliquer la fonction check_model() du package performance à chaque élément de la colonne "models". La fonction check_model() évalue les performances du modèle et fournit des diagnostics pertinents.
+
+-   Enfin, le code retourne le dataframe "nested_models", qui contient la colonne "data" d'origine, ainsi que les nouvelles colonnes "models", "coefs", "quality", "preds" et "performance".
+
+-   Nous pouvons `map() library puur de tidyverse` sur chaque méta-observation de notre cadre de données imbriqué et appliquer une régression linéaire à chacun des 10 data-sets qui sont stockés dans la colonne de liste que nous avons appelée "data".
+
+-   De plus, plutôt que de laisser la liste des modèles comme des objets flottant librement , il est préférable de stocker tous nos modèles dans la colonne-list suivante, appelons cette colonne-list "modèles".
+
+-   En outre, nous allons maintenant `map()` sur nos modèles afin d'extraire les coefficients avec les IC à 95 %, les indicateurs de qualité du modèle et même les prédictions, et les stocker dans des colonnes distinctes.
+
+## Maintenant que nous avons **une liste de 10 modèles nous pouvons, par exemple** :
+
+Jeter un coup d'œil au premier modèle ou à ses coefficients et même ces performance
+
+```{r, message=FALSE, warning=FALSE}
+
+report(nested_models$models[[1]])
+```
+
+```{r}
+nested_models$models[[1]]
+```
+
+```{r}
+nested_models$quality[[1]]
+```
+
+```{r, message = FALSE}
+
+nested_models$performance[[1]]
+```
+
+nous pouvons vérifier toutes les hypothèses du second modèle en une seule fois en utilisant la fonction `check_model()` du package `{performance}`,
+
+nous pouvons regarder la qualité du modèle, disons, un modèle N°4 ou
+
+nous pouvons tracer les prédictions d'un modèle N°9 en utilisant la fonction plot_model() d'un autre package étonnant {sjPlot}.
+
+## Utilisons la fonction `Unnest()`
+
+### Imprimons les coefficients de chacun de nos modèles
+
+```{r}
+library(flextable) # for a good looking table
+nested_models %>%
+  unnest(coefs) %>% 
+  select(-data, -models, -quality, -preds) %>% 
+  mutate_if(is.numeric, ~ round(., 2)) %>% 
+  regulartable() %>% 
+  autofit()
+```
+
+### Imprimons les informations de qualité de chacun de tous nos modèles
+
+```{r,  message=FALSE}
+nested_models |>  
+  unnest(quality) |>  
+  select(-data, -models, -coefs, -df, -df.residual, -deviance, -preds) |> 
+  arrange(adj.r.squared) |> 
+  mutate_if(is.numeric, ~ round(., 2)) |>  
+  regulartable() |>  
+  autofit()
+```
+
+```{r}
+unnested_preds <- 
+  nested_models |> 
+  unnest(preds)
+```
+
+```{r, message=FALSE}
+ggplot(df, aes(x = age, y = wage, group = health_ins)) +
+   geom_point(aes(color = health_ins), alpha = 0.2, shape = 1) +
+   geom_smooth(method = "lm", size = 2) +
+   facet_grid(. ~ education, scales = "free") +
+   geom_line(data = unnested_preds, aes(y = .fitted, age, color = health_ins)) 
+```
