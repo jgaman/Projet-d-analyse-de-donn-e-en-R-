@@ -1,12 +1,13 @@
 ---
 title: "Projet Analyse de données en R, M2 IA School"
-author: "Jean Luc GAMAN, Jordan B"
+author: "Jean Luc GAMAN, Jordan Boucetta"
 
 toc: true
 code-fold: show
 reader-mode: true
-logo: "iaschool.png"
 ---
+
+![](https://img.money.com/2022/02/News-2022-Graduate-Page-Gap.jpg)
 
 # Data Analyse du data-set Wage Mid-Atlantic
 
@@ -89,7 +90,7 @@ plot_grpfrq(
 
 💡Par exemple, elle montre clairement que la plupart des personnes ayant un faible niveau d'éducation travaillent dans des usines, tandis que les personnes ayant un niveau d'éducation plus élevé travaillent dans le domaine de l'information.
 
-### Essayons de déterminer qui gagne le plus, les travailleurs de l'industrie ou de l'information 
+### Essayons de déterminer qui gagne le plus, les travailleurs de l'industrie ou de l'information
 
 ```{r, message = FALSE, results = 'hide'}
 df |> 
@@ -295,3 +296,13 @@ ggplot(df, aes(x = age, y = wage, group = health_ins)) +
    facet_grid(. ~ education, scales = "free") +
    geom_line(data = unnested_preds, aes(y = .fitted, age, color = health_ins)) 
 ```
+
+## Conclusion:
+
+-   **L'augmentation du salaire avec l'âge est beaucoup plus importante lorsque l'on possède au moins un diplôme universitaire** que si l'on n'a pas fait d'études. Ainsi, à la fin de notre vie, nous aurons un salaire impressionnant de 150 000 dollars, alors que sans aucune formation, nous ne dépasserons jamais la barre des 100 000 dollars.
+
+-   **Il semble donc que l'éducation soit importante, et la pente le montre clairement !** Cependant, bien que la pente du diplôme d'études supérieures soit beaucoup plus faible, ce qui pourrait suggérer que l'éducation n'en vaut pas la peine, l'ordonnée à l'origine raconte une autre histoire.
+
+-   **En effet, les personnes qui ont investi dans l'éducation dès le départ commencent leur vie avec le même salaire que celui que les personnes qui ont fait des études supérieures n'atteignent qu'à la fin de leur vie.**
+
+-   **Si l'on examine le niveau d'éducation de ces 3 000 personnes, on constate que la plupart des plus riches ont un diplôme d'études supérieures, tandis que la plupart des plus pauvres n'ont qu'un diplôme d'études secondaires ou moins.**
