@@ -1,0 +1,1 @@
+Sitemap: https://jgaman.github.io/Projet-d-analyse-de-donn-e-en-R-/sitemap.xml
