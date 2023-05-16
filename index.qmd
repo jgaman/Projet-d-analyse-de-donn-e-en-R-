@@ -1,6 +1,6 @@
 ---
 title: "Projet Analyse de données en R, M2 IA School"
-author: "Jean Luc GAMAN, Jordan Boucetta"
+author: "Jean Luc GAMAN"
 
 toc: true
 code-fold: show
